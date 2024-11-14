@@ -11,7 +11,8 @@ public class Linter(CheckOptions options)
     {
         var workspacePath = options.Workspace;
         var settingManager = new SettingManager();
-        settingManager.LoadSetting(workspacePath);
+        var emmyrcPath = Path.Combine(workspacePath, SettingManager.ConfigName);
+        settingManager.LoadSetting(emmyrcPath);
         var luaWorkspace = LuaProject.Create(workspacePath, settingManager.GetLuaFeatures());
         var foundedError = false;
 
