@@ -67,6 +67,7 @@ public static class DiagnosticSeverityHelper
             DiagnosticCode.DisableGlobalDefine => DiagnosticSeverity.Error,
             DiagnosticCode.UndefinedField => DiagnosticSeverity.Warning,
             DiagnosticCode.LocalConstReassign => DiagnosticSeverity.Error,
+            DiagnosticCode.MissingOverridden => DiagnosticSeverity.Error,
             _ => DiagnosticSeverity.Warning
         };
     }

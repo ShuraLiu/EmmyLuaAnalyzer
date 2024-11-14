@@ -18,7 +18,8 @@ public class LuaDiagnostics(LuaCompilation compilation)
         new DisableGlobalDefine(compilation),
         new ReadOnlyChecker(compilation),
         new TypeNotFoundChecker(compilation),
-        new UndefinedFieldChecker(compilation)
+        new UndefinedFieldChecker(compilation),
+        new MissingOverriddenChecker(compilation)
     ];
 
     public LuaCompilation Compilation { get; } = compilation;

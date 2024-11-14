@@ -45,6 +45,8 @@ public enum DiagnosticCode
     LocalConstReassign,
     [EnumMember(Value = "duplicate-type")]
     DuplicateType,
+    [EnumMember(Value = "missing-overridden")]
+    MissingOverridden,
 }
 // @formatter:on
 public static class DiagnosticCodeHelper
@@ -99,6 +101,7 @@ public static class DiagnosticCodeHelper
             DiagnosticCode.UndefinedField => false,
             DiagnosticCode.LocalConstReassign => true,
             DiagnosticCode.DuplicateType => true,
+            DiagnosticCode.MissingOverridden => true,
             _ => false
         };
     }
