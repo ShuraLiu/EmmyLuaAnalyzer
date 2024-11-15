@@ -4,6 +4,8 @@ using System.Text.Json.Serialization;
 using EmmyLua.CodeAnalysis.Diagnostics;
 using EmmyLua.CodeAnalysis.Workspace.Module.FilenameConverter;
 
+using EmmyLua.Configuration.Custom;
+
 namespace EmmyLua.Configuration;
 
 /// <summary>
@@ -43,6 +45,9 @@ public class Setting
 
     [JsonPropertyName("semanticTokens")]
     public SemanticTokens SemanticTokens { get; set; } = new();
+
+    [JsonPropertyName("customDiagnostics")]
+    public CustomDiagnostics CustomDiagnostics { get; set; } = new();
 }
 
 public class Completion

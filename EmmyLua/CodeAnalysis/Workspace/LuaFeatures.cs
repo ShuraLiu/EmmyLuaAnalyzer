@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using EmmyLua.CodeAnalysis.Diagnostics;
+using EmmyLua.CodeAnalysis.Diagnostics.Custom;
 using EmmyLua.CodeAnalysis.Document;
 using EmmyLua.CodeAnalysis.Document.Version;
 
@@ -10,6 +11,8 @@ public class LuaFeatures
     public LuaLanguage Language { get; set; } = new(LuaLanguageLevel.LuaLatest);
 
     public DiagnosticConfig DiagnosticConfig { get; set; } = new();
+
+    public CustomDiagnosticConfig CustomDiagnosticConfig { get; set; } = new();
 
     public List<string> WorkspaceRoots { get; set; } = [];
 

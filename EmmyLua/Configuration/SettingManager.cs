@@ -117,6 +117,8 @@ public class SettingManager
         setting.Workspace.WorkspaceRoots = setting.Workspace.WorkspaceRoots.Select(PreProcessPath).ToList();
         setting.Workspace.Library = setting.Workspace.Library.Select(PreProcessPath).ToList();
         setting.Resource.Paths = setting.Resource.Paths.Select(PreProcessPath).ToList();
+        setting.CustomDiagnostics.BuffIdConfig.BuffIdConfigFileInfo.Path =
+            PreProcessPath(setting.CustomDiagnostics.BuffIdConfig.BuffIdConfigFileInfo.Path);
         if (setting.Resource.Paths.Count == 0)
         {
             setting.Resource.Paths.Add(Workspace);
@@ -241,6 +243,8 @@ public class SettingManager
 
         features.RequirePathStrict = setting.Strict.RequirePath;
         features.TypeCallStrict = setting.Strict.TypeCall;
+
+        features.CustomDiagnosticConfig.LoadConfig(setting);
 
         return features;
     }
