@@ -153,7 +153,7 @@ public class LuaProject
         var files = new List<string>();
         foreach (var thirdPartyRoot in thirdPartyRoots)
         {
-            files.AddRange(CollectFiles(thirdPartyRoot));
+            files.AddRange(CollectFiles(thirdPartyRoot, false));
             ModuleManager.AddPackageRoot(thirdPartyRoot);
         }
 
