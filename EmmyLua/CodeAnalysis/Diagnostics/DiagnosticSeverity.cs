@@ -68,6 +68,7 @@ public static class DiagnosticSeverityHelper
             DiagnosticCode.UndefinedField => DiagnosticSeverity.Warning,
             DiagnosticCode.LocalConstReassign => DiagnosticSeverity.Error,
             DiagnosticCode.MissingOverridden => DiagnosticSeverity.Error,
+            DiagnosticCode.InvalidBuffID => DiagnosticSeverity.Error,
             _ => DiagnosticSeverity.Warning
         };
     }

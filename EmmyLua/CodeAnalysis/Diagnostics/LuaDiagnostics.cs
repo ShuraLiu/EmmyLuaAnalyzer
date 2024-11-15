@@ -19,7 +19,8 @@ public class LuaDiagnostics(LuaCompilation compilation)
         new ReadOnlyChecker(compilation),
         new TypeNotFoundChecker(compilation),
         new UndefinedFieldChecker(compilation),
-        new MissingOverriddenChecker(compilation)
+        new MissingOverriddenChecker(compilation),
+        new BuffIdChecker(compilation)
     ];
 
     public LuaCompilation Compilation { get; } = compilation;

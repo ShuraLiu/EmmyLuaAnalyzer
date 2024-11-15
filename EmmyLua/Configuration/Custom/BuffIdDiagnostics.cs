@@ -17,7 +17,7 @@ public class BuffIdConfigFileInfo
 public class BuffIdFunctionInfo
 {
     [JsonPropertyName("name")]
-    public string? FuncName {get;set;}
+    public string FuncName { get; set; } = string.Empty;
 
     [JsonPropertyName("argPos")]
     public List<int> ArgPos { get; set; } = [];

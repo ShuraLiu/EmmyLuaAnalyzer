@@ -47,6 +47,8 @@ public enum DiagnosticCode
     DuplicateType,
     [EnumMember(Value = "missing-overridden")]
     MissingOverridden,
+    [EnumMember(Value = "invalid-buffid")]
+    InvalidBuffID,
 }
 // @formatter:on
 public static class DiagnosticCodeHelper
@@ -102,6 +104,7 @@ public static class DiagnosticCodeHelper
             DiagnosticCode.LocalConstReassign => true,
             DiagnosticCode.DuplicateType => true,
             DiagnosticCode.MissingOverridden => true,
+            DiagnosticCode.InvalidBuffID => true,
             _ => false
         };
     }

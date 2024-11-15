@@ -215,6 +215,7 @@ public class ServerContext(Framework.Server.LanguageServer server)
         workspaceNeedReload |= !newFeatures.Includes.SequenceEqual(oldFeatures.Includes);
         workspaceNeedReload |= !newFeatures.WorkspaceRoots.SequenceEqual(oldFeatures.WorkspaceRoots);
         workspaceNeedReload |= !newFeatures.ThirdPartyRoots.SequenceEqual(oldFeatures.ThirdPartyRoots);
+        workspaceNeedReload |= !newFeatures.CustomDiagnosticConfig.BuffIdDiagnosticConfig.Equals(oldFeatures.CustomDiagnosticConfig.BuffIdDiagnosticConfig);
         if (workspaceNeedReload)
         {
             LuaProject = LuaProject.CleanCreate();

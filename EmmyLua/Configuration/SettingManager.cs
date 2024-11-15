@@ -119,6 +119,7 @@ public class SettingManager
         setting.Resource.Paths = setting.Resource.Paths.Select(PreProcessPath).ToList();
         setting.CustomDiagnostics.BuffIdConfig.BuffIdConfigFileInfo.Path =
             PreProcessPath(setting.CustomDiagnostics.BuffIdConfig.BuffIdConfigFileInfo.Path);
+        setting.CustomDiagnostics.BuffIdConfig.DesignerScriptPaths = setting.CustomDiagnostics.BuffIdConfig.DesignerScriptPaths.Select(PreProcessPath).ToList();
         if (setting.Resource.Paths.Count == 0)
         {
             setting.Resource.Paths.Add(Workspace);
