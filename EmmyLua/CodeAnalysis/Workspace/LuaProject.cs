@@ -157,12 +157,26 @@ public class LuaProject
             ModuleManager.AddPackageRoot(thirdPartyRoot);
         }
 
-        files.AddRange(CollectFiles(workspace));
-        ModuleManager.AddPackageRoot(workspace);
-        foreach (var workspaceRoot in Features.WorkspaceRoots)
+        if (Features.WorkspaceRoots.ToList().Count == 0)
         {
-            ModuleManager.AddPackageRoot(workspaceRoot);
+            files.AddRange(CollectFiles(workspace));
+            ModuleManager.AddPackageRoot(workspace);
+
+            foreach (var workspaceRoot in Features.WorkspaceRoots)
+            {
+                ModuleManager.AddPackageRoot(workspaceRoot);
+            }
         }
+        else
+        {
+            ModuleManager.AddPackageRoot(workspace);
+            foreach (var workspaceRoot in Features.WorkspaceRoots)
+            {
+                files.AddRange(CollectFiles(workspaceRoot));
+                ModuleManager.AddPackageRoot(workspaceRoot);
+            }
+        }
+
 
         var documents =
             new List<LuaDocument>(files.AsParallel().Select(

@@ -16,7 +16,17 @@ public class Linter(CheckOptions options)
         var foundedError = false;
 
         var searchContext = new SearchContext(luaWorkspace.Compilation, new SearchContextFeatures());
-        var documents = luaWorkspace.AllDocuments.ToList();
+        var documents = luaWorkspace.AllDocuments.Where(doc =>
+        {
+            foreach (var root in luaWorkspace.Features.ThirdPartyRoots)
+            {
+                if (doc.Path.StartsWith(root))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }).ToList();
         foreach (var document in documents)
         {
             var diagnostics = luaWorkspace.Compilation.GetDiagnostics(document.Id, searchContext);
