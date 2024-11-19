@@ -4,7 +4,7 @@ using EmmyLua.CodeAnalysis.Syntax.Node.SyntaxNodes;
 
 namespace EmmyLua.CodeAnalysis.Diagnostics.Checkers;
 
-public class BuffIdChecker(LuaCompilation compilation) : DiagnosticCheckerBase(compilation, [DiagnosticCode.InvalidBuffID])
+public class BuffIdChecker(LuaCompilation compilation) : DiagnosticCheckerBase(compilation, [DiagnosticCode.InvalidBuffId])
 {
     public override void Check(DiagnosticContext context)
     {
@@ -34,7 +34,7 @@ public class BuffIdChecker(LuaCompilation compilation) : DiagnosticCheckerBase(c
                 if (func.ArgList is null || func.ArgList.ArgList.ToList().Count < info.ArgPositions.Count)
                 {
                     context.Report(
-                        DiagnosticCode.InvalidBuffID,
+                        DiagnosticCode.InvalidBuffId,
                         $"Function argument count error",
                         func.Range
                     );
@@ -51,7 +51,7 @@ public class BuffIdChecker(LuaCompilation compilation) : DiagnosticCheckerBase(c
                             if (!validBuffIDs.Contains(argToken.Value))
                             {
                                 context.Report(
-                                    DiagnosticCode.InvalidBuffID,
+                                    DiagnosticCode.InvalidBuffId,
                                     $"Buff id does not exists: {argToken.Value}",
                                     arg.Range
                                 );

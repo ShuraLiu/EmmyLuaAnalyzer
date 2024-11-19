@@ -20,7 +20,8 @@ public class LuaDiagnostics(LuaCompilation compilation)
         new TypeNotFoundChecker(compilation),
         new UndefinedFieldChecker(compilation),
         new MissingOverriddenChecker(compilation),
-        new BuffIdChecker(compilation)
+        new BuffIdChecker(compilation),
+        new ReferenceLeakChecker(compilation)
     ];
 
     public LuaCompilation Compilation { get; } = compilation;
