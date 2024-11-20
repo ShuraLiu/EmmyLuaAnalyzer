@@ -7,6 +7,10 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+        <CETCompat>false</CETCompat>
+    </PropertyGroup>
+
     <ItemGroup>
       <ProjectReference Include="..\EmmyLua\EmmyLua.csproj" />
     </ItemGroup>

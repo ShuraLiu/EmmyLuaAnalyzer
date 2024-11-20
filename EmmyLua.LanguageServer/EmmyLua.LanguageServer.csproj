@@ -13,11 +13,14 @@
     <PropertyGroup Condition="'$(Configuration)'=='Debug'">
         <!-- 调试配置：生成PDB文件 -->
         <DebugType>portable</DebugType>
+        <CETCompat>false</CETCompat>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)'=='Release'">
         <!-- 发布配置：不生成PDB文件 -->
         <StripSymbols>true</StripSymbols>
+        <DebugType>None</DebugType>
+        <DebugSymbols>False</DebugSymbols>
     </PropertyGroup>
 
     <ItemGroup>
