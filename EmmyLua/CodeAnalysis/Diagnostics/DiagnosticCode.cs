@@ -47,7 +47,7 @@ public enum DiagnosticCode
     DuplicateType,
     [EnumMember(Value = "missing-overridden")]
     MissingOverridden,
-    [EnumMember(Value = "invalid-buffid")]
+    [EnumMember(Value = "invalid-buff-id")]
     InvalidBuffId,
     [EnumMember(Value = "reference-leak")]
     ReferenceLeak,
@@ -105,9 +105,6 @@ public static class DiagnosticCodeHelper
             DiagnosticCode.UndefinedField => false,
             DiagnosticCode.LocalConstReassign => true,
             DiagnosticCode.DuplicateType => true,
-            DiagnosticCode.MissingOverridden => true,
-            DiagnosticCode.InvalidBuffId => true,
-            DiagnosticCode.ReferenceLeak => true,
             _ => false
         };
     }
