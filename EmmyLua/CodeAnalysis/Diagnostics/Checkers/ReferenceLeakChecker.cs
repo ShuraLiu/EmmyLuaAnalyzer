@@ -10,7 +10,8 @@ public class ReferenceLeakChecker(LuaCompilation compilation)
     private List<PairwiseFunctionCheckerBase> PairwiseFunctionCheckers { get; } =
     [
         new EventBusChecker(),
-        new InputSystemChecker()
+        new InputSystemChecker(),
+        // new SchedulerSystemChecker()
     ];
     public override void Check(DiagnosticContext context)
     {
