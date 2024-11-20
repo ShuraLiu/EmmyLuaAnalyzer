@@ -1,29 +1,22 @@
-using System.Collections.ObjectModel;
-using System.Diagnostics.CodeAnalysis;
 using EmmyLua.CodeAnalysis.Compilation;
-using EmmyLua.CodeAnalysis.Compilation.Symbol;
 using EmmyLua.CodeAnalysis.Syntax.Node.SyntaxNodes;
-using EmmyLua.CodeAnalysis.Type;
+using EmmyLua.CodeAnalysis.Diagnostics.Checkers.PairwiseFunctionCheckers;
 
 namespace EmmyLua.CodeAnalysis.Diagnostics.Checkers;
 
-[method: SetsRequiredMembers]
-public class ReferenceInfo(LuaSymbol caller, LuaSymbol function, LuaSymbol target, LuaCallExprSyntax syntax)
-{
-    public required LuaSymbol Caller = caller;
-    public required LuaSymbol Function = function;
-    public required LuaSymbol Target = target;
-    public required LuaCallExprSyntax Syntax = syntax;
-}
 public class ReferenceLeakChecker(LuaCompilation compilation)
     : DiagnosticCheckerBase(compilation, [DiagnosticCode.ReferenceLeak])
 {
+    private List<PairwiseFunctionCheckerBase> PairwiseFunctionCheckers { get; } =
+    [
+        new EventBusChecker()
+    ];
     public override void Check(DiagnosticContext context)
     {
-        Collection<ReferenceInfo> eventBusGlobalEventIncreaseInfos = new();
-        Collection<ReferenceInfo> eventBusGlobalEventDecreaseInfos = new();
-        Collection<ReferenceInfo> eventBusTargetEventIncreaseInfos = new();
-        Collection<ReferenceInfo> eventBusTargetEventDecreaseInfos = new();
+        foreach (var pairwiseFunctionChecker in PairwiseFunctionCheckers)
+        {
+            pairwiseFunctionChecker.Prepare();
+        }
         var document = context.Document;
         foreach (var callExpr in document.SyntaxTree.SyntaxRoot.Descendants.OfType<LuaCallExprSyntax>())
         {
@@ -38,84 +31,20 @@ public class ReferenceLeakChecker(LuaCompilation compilation)
                 if (prefixExpr is LuaIndexExprSyntax { IsColonIndex: true} || prefixExpr is LuaNameExprSyntax)
                 {
                     var nameDeclaration = context.SearchContext.FindDeclaration(prefixExpr);
-                    if (nameDeclaration?.Name == "EventBus")
+                    foreach (var pairwiseFunctionChecker in PairwiseFunctionCheckers)
                     {
-                        if (callExpr.Name == "RegisterGlobalEvent" || callExpr.Name == "UnRegisterGlobalEvent")
+                        if (pairwiseFunctionChecker.CanCheck(callExpr, nameDeclaration))
                         {
-                            var arg = callExpr.ArgList?.ArgList.ToList()[0];
-                            var argDeclaration = context.SearchContext.FindDeclaration(arg) ?? new LuaSymbol(arg.ToString(), Builtin.Unknown, new VirtualInfo());
-                            if (arg is not null && argDeclaration.Type == Builtin.Unknown)
-                            {
-                                context.Report(
-                                    DiagnosticCode.ReferenceLeak,
-                                    $"parameter is nil",
-                                    arg.Range
-                                );
-                                continue;
-                            }
-
-                            ReferenceInfo info = new(nameDeclaration, declaration, argDeclaration, callExpr);
-                            if (callExpr.Name == "RegisterGlobalEvent")
-                            {
-                                eventBusGlobalEventIncreaseInfos.Add(info);
-                            }
-                            else if (callExpr.Name == "UnRegisterGlobalEvent")
-                            {
-                                eventBusGlobalEventDecreaseInfos.Add(info);
-                            }
-                        }
-
-                        if (callExpr.Name == "RegisterTargetEvent" || callExpr.Name == "UnRegisterTargetEvent")
-                        {
-                            var arg = callExpr.ArgList?.ArgList.ToList()[1];
-                            var argDeclaration = context.SearchContext.FindDeclaration(arg) ?? new LuaSymbol(arg.ToString(), Builtin.Unknown, new VirtualInfo());
-
-                            if (arg is not null && argDeclaration.Type == Builtin.Unknown)
-                            {
-                                context.Report(
-                                    DiagnosticCode.ReferenceLeak,
-                                    $"parameter is nil",
-                                    arg.Range
-                                );
-                                continue;
-                            }
-
-                            ReferenceInfo info = new(nameDeclaration, declaration, argDeclaration, callExpr);
-                            if (callExpr.Name == "RegisterTargetEvent")
-                            {
-                                eventBusTargetEventIncreaseInfos.Add(info);
-                            }
-                            else if (callExpr.Name == "UnRegisterTargetEvent")
-                            {
-                                eventBusTargetEventDecreaseInfos.Add(info);
-                            }
+                            pairwiseFunctionChecker.AnalysisCallSyntax(context, callExpr, declaration);
                         }
                     }
                 }
             }
         }
 
-        foreach (var info in eventBusGlobalEventIncreaseInfos)
+        foreach (var pairwiseFunctionChecker in PairwiseFunctionCheckers)
         {
-            if (eventBusGlobalEventDecreaseInfos.All(i => (i.Caller != info.Caller || (!info.Target.IsLocal && i.Target != info.Target))))
-            {
-                context.Report(
-                    DiagnosticCode.ReferenceLeak,
-                    $"Missing UnRegisterGlobalEvent call for {info.Target.Name}",
-                    info.Syntax.PrefixExpr.Range
-                );
-            }
-        }
-        foreach (var info in eventBusTargetEventIncreaseInfos)
-        {
-            if (eventBusTargetEventDecreaseInfos.All(i => (i.Caller != info.Caller || (!info.Target.IsLocal && i.Target != info.Target))))
-            {
-                context.Report(
-                    DiagnosticCode.ReferenceLeak,
-                    $"Missing UnRegisterTargetEvent call for {info.Target.Name}",
-                    info.Syntax.PrefixExpr.Range
-                );
-            }
+            pairwiseFunctionChecker.PostAynlysis(context);
         }
     }
 }
