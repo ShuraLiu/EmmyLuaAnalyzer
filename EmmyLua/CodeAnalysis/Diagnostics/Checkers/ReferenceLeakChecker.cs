@@ -9,7 +9,8 @@ public class ReferenceLeakChecker(LuaCompilation compilation)
 {
     private List<PairwiseFunctionCheckerBase> PairwiseFunctionCheckers { get; } =
     [
-        new EventBusChecker()
+        new EventBusChecker(),
+        new InputSystemChecker()
     ];
     public override void Check(DiagnosticContext context)
     {
@@ -28,7 +29,7 @@ public class ReferenceLeakChecker(LuaCompilation compilation)
 
             if (callExpr.PrefixExpr is LuaIndexExprSyntax { PrefixExpr : {} prefixExpr })
             {
-                if (prefixExpr is LuaIndexExprSyntax { IsColonIndex: true} || prefixExpr is LuaNameExprSyntax)
+                if (prefixExpr is LuaIndexExprSyntax or LuaNameExprSyntax)
                 {
                     var nameDeclaration = context.SearchContext.FindDeclaration(prefixExpr);
                     foreach (var pairwiseFunctionChecker in PairwiseFunctionCheckers)
