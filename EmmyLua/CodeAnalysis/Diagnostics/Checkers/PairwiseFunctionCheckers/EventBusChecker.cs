@@ -1,10 +1,16 @@
 using System.Collections.ObjectModel;
 using EmmyLua.CodeAnalysis.Compilation.Symbol;
+using EmmyLua.CodeAnalysis.Syntax.Kind;
 using EmmyLua.CodeAnalysis.Syntax.Node.SyntaxNodes;
 using EmmyLua.CodeAnalysis.Type;
 
 namespace EmmyLua.CodeAnalysis.Diagnostics.Checkers.PairwiseFunctionCheckers;
 
+public class UnRegisterAllData()
+{
+    public LuaCallExprSyntax CallExprSyntax  { get; set; }
+    public LuaSymbol Target = new LuaSymbol("unknown", Builtin.Unknown, new VirtualInfo());
+}
 public class EventBusChecker() : PairwiseFunctionCheckerBase()
 {
     private Collection<FunctionData> _globalEventRegisterData = new();
@@ -13,12 +19,15 @@ public class EventBusChecker() : PairwiseFunctionCheckerBase()
     private Collection<FunctionData> _targetEventRegisterData = new();
     private Collection<FunctionData> _targetEventUnRegisterData = new();
 
+    private Collection<UnRegisterAllData> _unRegisterAllData = new();
+
     public override void Prepare()
     {
         _globalEventRegisterData.Clear();
         _globalEventUnRegisterData.Clear();
         _targetEventRegisterData.Clear();
         _targetEventUnRegisterData.Clear();
+        _unRegisterAllData.Clear();
     }
 
     public override bool CanCheck(LuaCallExprSyntax callExprSyntax, LuaSymbol prefixExprSymbol)
@@ -28,12 +37,188 @@ public class EventBusChecker() : PairwiseFunctionCheckerBase()
 
     public override void AnalysisCallSyntax(DiagnosticContext context, LuaCallExprSyntax callExprSyntax, LuaSymbol callSymbol)
     {
+        AnalyzePairCallSyntax(context, callExprSyntax, callSymbol);
+        AnalyzeUnRegisterAllCallSyntax(context, callExprSyntax, callSymbol);
+    }
+
+    public override void PostAynlysis(DiagnosticContext context)
+    {
+        var valid = true;
+        foreach (var registerData in _globalEventRegisterData)
+        {
+            valid = false;
+            if (_globalEventUnRegisterData.Any(unregisterData =>
+                {
+                    if (registerData.Arguments[0].IsLocal is false &&
+                        registerData.Arguments[0].UniqueId != unregisterData.Arguments[0].UniqueId)
+                    {
+                        return false;
+                    }
+
+                    if (registerData.Returns.Count > 0 && unregisterData.Arguments.Count == 2)
+                    {
+                        if (registerData.Returns[0].UniqueId == unregisterData.Arguments[1].UniqueId)
+                        {
+                            return true;
+                        }
+                    }
+
+                    if (registerData.Arguments.Count >= 4)
+                    {
+                        if (unregisterData.Arguments.Count == 3)
+                        {
+                            for (var idx = 1; idx < unregisterData.Arguments.Count; ++idx)
+                            {
+                                if (registerData.Arguments[idx + 1].IsLocal is false &&
+                                    registerData.Arguments[idx + 1].UniqueId != unregisterData.Arguments[idx].UniqueId)
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                        else if (unregisterData.Arguments.Count > 3)
+                        {
+                            if (registerData.Arguments.Count != unregisterData.Arguments.Count + 1)
+                            {
+                                return false;
+                            }
+
+                            for (var idx = 2; idx < registerData.Arguments.Count; ++idx)
+                            {
+                                if (registerData.Arguments[idx].IsLocal is false &&
+                                    registerData.Arguments[idx].UniqueId != unregisterData.Arguments[idx - 1].UniqueId)
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            return false;
+                        }
+                    }
+                    return true;
+                }))
+            {
+                valid = true;
+            }
+
+            if (valid is not true)
+            {
+                if (_unRegisterAllData.Any(d =>
+                    {
+                        return registerData.Arguments.Count >= 4 && registerData.Arguments[3].UniqueId == d.Target.UniqueId;
+                    }))
+                {
+                    valid = true;
+                }
+            }
+
+            if (valid is not true)
+            {
+                context.Report(
+                    DiagnosticCode.ReferenceLeak,
+                    $"Missing UnRegisterGlobalEvent call for {registerData.Arguments[0].Name}",
+                    registerData.CallExprSyntax.PrefixExpr.Range
+                );
+            }
+        }
+
+        foreach (var registerData in _targetEventRegisterData)
+        {
+            valid = false;
+            if (_targetEventUnRegisterData.Any(unregisterData =>
+                {
+                    if (registerData.Arguments[1].IsLocal is false &&
+                        registerData.Arguments[1].UniqueId != unregisterData.Arguments[1].UniqueId)
+                    {
+                        return false;
+                    }
+
+                    if (registerData.Returns.Count > 0 && unregisterData.Arguments.Count == 3)
+                    {
+                        if (registerData.Returns[0].UniqueId == unregisterData.Arguments[2].UniqueId)
+                        {
+                            return true;
+                        }
+                    }
+
+                    if (registerData.Arguments.Count >= 5)
+                    {
+                        if (unregisterData.Arguments.Count == 4)
+                        {
+                            for (var idx = 2; idx < unregisterData.Arguments.Count; ++idx)
+                            {
+                                if (registerData.Arguments[idx + 1].IsLocal is false &&
+                                    registerData.Arguments[idx + 1].UniqueId != unregisterData.Arguments[idx].UniqueId)
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                        else if (unregisterData.Arguments.Count > 4)
+                        {
+                            if (registerData.Arguments.Count != unregisterData.Arguments.Count + 1)
+                            {
+                                return false;
+                            }
+
+                            for (var idx = 3; idx < registerData.Arguments.Count; ++idx)
+                            {
+                                if (registerData.Arguments[idx].IsLocal is false &&
+                                    registerData.Arguments[idx].UniqueId != unregisterData.Arguments[idx - 1].UniqueId)
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                }))
+            {
+                valid = true;
+            }
+
+            if (valid is not true)
+            {
+                if (_unRegisterAllData.Any(d =>
+                    {
+                        return registerData.Arguments.Count >= 5 && registerData.Arguments[4].UniqueId == d.Target.UniqueId;
+                    }))
+                {
+                    valid = true;
+                }
+            }
+
+            if (valid is not true)
+            {
+                context.Report(
+                    DiagnosticCode.ReferenceLeak,
+                    $"Missing UnRegisterTargetEvent call for {registerData.Arguments[1].Name}",
+                    registerData.CallExprSyntax.PrefixExpr.Range
+                );
+            }
+        }
+    }
+
+    private void AnalyzePairCallSyntax(DiagnosticContext context, LuaCallExprSyntax callExprSyntax,
+        LuaSymbol callSymbol)
+    {
+        if (!(callExprSyntax.Name is "RegisterGlobalEvent" or "UnRegisterGlobalEvent" or "RegisterTargetEvent" or "UnRegisterTargetEvent"))
+        {
+            return;
+        }
         if (callExprSyntax.Name is "RegisterGlobalEvent" or "UnRegisterGlobalEvent")
         {
             var firstArg = callExprSyntax.ArgList?.ArgList.ToList()[0];
             var argDeclaration = context.SearchContext.FindDeclaration(firstArg) ?? new LuaSymbol(firstArg.ToString(), Builtin.Unknown, new VirtualInfo());
 
-            if (firstArg is not null && argDeclaration.Type == Builtin.Unknown)
+            if (firstArg is LuaLiteralExprSyntax {Literal.Kind: LuaTokenKind.TkNil})
             {
                 context.Report(
                     DiagnosticCode.ReferenceLeak,
@@ -47,7 +232,7 @@ public class EventBusChecker() : PairwiseFunctionCheckerBase()
         {
             var eventArg = callExprSyntax.ArgList?.ArgList.ToList()[1];
             var argDeclaration = context.SearchContext.FindDeclaration(eventArg) ?? new LuaSymbol(eventArg.ToString(), Builtin.Unknown, new VirtualInfo());
-            if (eventArg is not null && argDeclaration.Type == Builtin.Unknown)
+            if (eventArg is LuaLiteralExprSyntax {Literal.Kind: LuaTokenKind.TkNil})
             {
                 context.Report(
                     DiagnosticCode.ReferenceLeak,
@@ -67,6 +252,13 @@ public class EventBusChecker() : PairwiseFunctionCheckerBase()
             data.Arguments.Add(declaration);
         }
 
+        if (callExprSyntax.Parent is LuaAssignStatSyntax assignStatSyntax && assignStatSyntax.VarList.ToList().Count > 0)
+        {
+            var ret = assignStatSyntax.VarList.ToList().First();
+            var retSymbol = context.SearchContext.FindDeclaration(ret) ?? new LuaSymbol(ret.ToString(), Builtin.Unknown, new VirtualInfo());
+            data.Returns.Add(retSymbol);
+        }
+
         switch (callExprSyntax.Name)
         {
             case "RegisterGlobalEvent":
@@ -84,73 +276,20 @@ public class EventBusChecker() : PairwiseFunctionCheckerBase()
         }
     }
 
-    public override void PostAynlysis(DiagnosticContext context)
+    private void AnalyzeUnRegisterAllCallSyntax(DiagnosticContext context, LuaCallExprSyntax callExprSyntax,
+        LuaSymbol callSymbol)
     {
-        var valid = true;
-        foreach (var registerData in _globalEventRegisterData)
+        if (callExprSyntax.Name is "UnRegisterAll")
         {
-            valid = false;
-            if (_globalEventUnRegisterData.Any(unregisterData =>
-                {
-                    if (registerData.Arguments.Count == 4 && unregisterData.Arguments.Count == 3)
-                    {
-                        return registerData.Arguments[0] == unregisterData.Arguments[0] &&
-                               registerData.Arguments[2] == unregisterData.Arguments[1] &&
-                               registerData.Arguments[3] == unregisterData.Arguments[2];
-                    }
-                    if (registerData.Arguments.Count == 3 && unregisterData.Arguments.Count == 2)
-                    {
-                        return registerData.Arguments[0] == unregisterData.Arguments[0] &&
-                               registerData.Arguments[2] == unregisterData.Arguments[1];
-                    }
-
-                    return false;
-                }))
+            UnRegisterAllData data = new();
+            var firstArg = callExprSyntax.ArgList?.ArgList.ToList()[0];
+            var declaration = context.SearchContext.FindDeclaration(firstArg);
+            if (declaration is not null)
             {
-                valid = true;
+                data.Target = declaration;
             }
 
-            if (valid is not true)
-            {
-                context.Report(
-                    DiagnosticCode.ReferenceLeak,
-                    $"Missing UnRegisterGlobalEvent call for {registerData.Arguments[0].Name}",
-                    registerData.CallExprSyntax.PrefixExpr.Range
-                );
-            }
-        }
-
-        foreach (var registerData in _targetEventRegisterData)
-        {
-            valid = false;
-            if (_targetEventUnRegisterData.Any(unregisterData =>
-                {
-                    if (registerData.Arguments.Count == 5 && unregisterData.Arguments.Count == 4)
-                    {
-                        return registerData.Arguments[1] == unregisterData.Arguments[1] &&
-                               registerData.Arguments[3] == unregisterData.Arguments[2] &&
-                               registerData.Arguments[4] == unregisterData.Arguments[3];
-                    }
-                    if (registerData.Arguments.Count == 4 && unregisterData.Arguments.Count == 3)
-                    {
-                        return registerData.Arguments[1] == unregisterData.Arguments[1] &&
-                               registerData.Arguments[3] == unregisterData.Arguments[2];
-                    }
-
-                    return false;
-                }))
-            {
-                valid = true;
-            }
-
-            if (valid is not true)
-            {
-                context.Report(
-                    DiagnosticCode.ReferenceLeak,
-                    $"Missing UnRegisterTargetEvent call for {registerData.Arguments[1].Name}",
-                    registerData.CallExprSyntax.PrefixExpr.Range
-                );
-            }
+            _unRegisterAllData.Add(data);
         }
     }
 }
