@@ -7,14 +7,14 @@ namespace EmmyLua.CodeAnalysis.Diagnostics.Checkers;
 public class ReferenceLeakChecker(LuaCompilation compilation)
     : DiagnosticCheckerBase(compilation, [DiagnosticCode.ReferenceLeak])
 {
-    private List<PairwiseFunctionCheckerBase> PairwiseFunctionCheckers { get; } =
-    [
-        new EventBusChecker(),
-        new InputSystemChecker(),
-        // new SchedulerSystemChecker()
-    ];
     public override void Check(DiagnosticContext context)
     {
+        List<PairwiseFunctionCheckerBase> PairwiseFunctionCheckers =
+        [
+            new EventBusChecker(),
+            new InputSystemChecker(),
+            // new SchedulerSystemChecker()
+        ];
         foreach (var pairwiseFunctionChecker in PairwiseFunctionCheckers)
         {
             pairwiseFunctionChecker.Prepare();
