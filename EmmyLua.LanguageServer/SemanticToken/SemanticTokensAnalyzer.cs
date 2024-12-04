@@ -1,7 +1,12 @@
-﻿using EmmyLua.CodeAnalysis.Compilation.Semantic;
+﻿using System.Collections.ObjectModel;
+using System.Text.RegularExpressions;
+using DocumentFormat.OpenXml.EMMA;
+using EmmyLua.CodeAnalysis.Compilation.Semantic;
+using EmmyLua.CodeAnalysis.Compilation.Symbol;
 using EmmyLua.CodeAnalysis.Syntax.Kind;
 using EmmyLua.CodeAnalysis.Syntax.Node;
 using EmmyLua.CodeAnalysis.Syntax.Node.SyntaxNodes;
+using EmmyLua.CodeAnalysis.Type;
 using EmmyLua.LanguageServer.Framework.Protocol.Capabilities.Common;
 using EmmyLua.LanguageServer.Framework.Protocol.Message.SemanticToken;
 using EmmyLua.LanguageServer.Framework.Protocol.Model;
@@ -49,6 +54,9 @@ public class SemanticTokensAnalyzer
         SemanticTokenTypes.Regexp,
         SemanticTokenTypes.Operator,
         SemanticTokenTypes.Decorator,
+        EmmySemanticTokenTypes.Self,
+        EmmySemanticTokenTypes.G,
+        EmmySemanticTokenTypes.UpValue
     ];
 
     private List<string> TokenModifiers { get; } =
@@ -92,6 +100,63 @@ public class SemanticTokensAnalyzer
                     case LuaSyntaxNode node:
                     {
                         TokenizeNode(builder, node);
+                        break;
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // ignore
+        }
+        catch (Exception e)
+        {
+            Console.Error.WriteLine(e);
+        }
+
+        try
+        { 
+            LuaSymbol? moduleClassSymbol = null;
+            LuaBlockSyntax? block = syntaxTree.SyntaxRoot.Descendants.OfType<LuaBlockSyntax>().FirstOrDefault();
+            if (block is not null)
+            {
+                LuaReturnStatSyntax? returnStat = block.FirstChild<LuaReturnStatSyntax>();
+                if (returnStat is not null)
+                {
+                    var node = returnStat.ChildrenNode.First();
+                    moduleClassSymbol = semanticModel.Context.FindDeclaration(node);
+                    builder.Push(node, EmmySemanticTokenTypes.Class);
+                }
+            }
+            
+            var isModuleFile = (moduleClassSymbol is not null);
+            
+            var nodes = syntaxTree.SyntaxRoot.Descendants.Where(e => e is not LuaCommentSyntax)
+                .SelectMany(it => it.DescendantsWithToken);
+            foreach (var nodeOrToken in nodes)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return [];
+                }
+
+                switch (nodeOrToken)
+                {
+                    case LuaSyntaxToken token:
+                    {
+                        TokenizeToken(semanticModel, builder, token, isVscode);
+                        break;
+                    }
+                    case LuaSyntaxNode node:
+                    {
+                        // if (semanticModel.Context.FindDeclaration(node) == moduleClassSymbol && node.Parent is LuaBlockSyntax)
+                        // {
+                        //     builder.Push(node, EmmySemanticTokenTypes.Class);
+                        // }
+                        // else
+                        {
+                            TokenizeNode(semanticModel, builder, node, moduleClassSymbol);
+                        }
                         break;
                     }
                 }
@@ -153,6 +218,27 @@ public class SemanticTokensAnalyzer
         return builder.Build();
     }
 
+    private void TokenizeToken(SemanticModel semanticModel, SemanticBuilderWrapper builder, LuaSyntaxToken token, bool isVscode)
+    {
+        if (token is {Kind:(LuaTokenKind.TkFunction or LuaTokenKind.TkAnd or LuaTokenKind.TkBreak
+                or LuaTokenKind.TkDo or LuaTokenKind.TkElse or LuaTokenKind.TkElseIf or LuaTokenKind.TkEnd
+                or LuaTokenKind.TkFalse or LuaTokenKind.TkFor or LuaTokenKind.TkIf or LuaTokenKind.TkGoto
+                or LuaTokenKind.TkIn or LuaTokenKind.TkLocal or LuaTokenKind.TkNil or LuaTokenKind.TkNot
+                or LuaTokenKind.TkOr or LuaTokenKind.TkRepeat or LuaTokenKind.TkReturn or LuaTokenKind.TkThen
+                or LuaTokenKind.TkTrue or LuaTokenKind.TkUntil or LuaTokenKind.TkWhile)})
+        {
+            builder.Push(token, EmmySemanticTokenTypes.Keyword);
+        }
+
+        if (token is {Kind: LuaTokenKind.TkString})
+        {
+            builder.Push(token, EmmySemanticTokenTypes.String);
+        }
+        else if (token is { Kind: LuaTokenKind.TkInt or LuaTokenKind.TkFloat })
+        {
+            builder.Push(token, EmmySemanticTokenTypes.Number);
+        }
+    }
     private void TokenizeToken(SemanticBuilderWrapper builder, LuaSyntaxToken token, bool isVscode)
     {
         var tokenKind = token.Kind;
@@ -227,12 +313,21 @@ public class SemanticTokensAnalyzer
             case LuaTokenKind.TkTagVersion:
             case LuaTokenKind.TkTagMapping:
             case LuaTokenKind.TkDocEnumField:
+            case LuaTokenKind.TkDocVisibility:
             {
                 if (!isVscode)
                 {
                     builder.Push(token, SemanticTokenTypes.Decorator, SemanticTokenModifiers.Documentation);
                 }
 
+                break;
+            }
+            case LuaTokenKind.TkNormalStart: // -- or ---
+            case LuaTokenKind.TkLongCommentStart: // --[[
+            case LuaTokenKind.TkDocLongStart: // --[[@
+            case LuaTokenKind.TkDocStart: // ---@
+            {
+                builder.Push(token, SemanticTokenTypes.Comment);
                 break;
             }
         }
@@ -286,6 +381,304 @@ public class SemanticTokensAnalyzer
                 }
 
                 break;
+            }
+            case LuaDocTagParamSyntax docTagParamSyntax:
+            {
+                if (docTagParamSyntax.Name is {} name)
+                {
+                    builder.Push(name, SemanticTokenTypes.Parameter, SemanticTokenModifiers.Documentation);
+                }
+                break;
+            }
+            case LuaDocFieldSyntax docFieldSyntax:
+            {
+                if (docFieldSyntax.FieldElement is { } name)
+                {
+                    builder.Push(name, SemanticTokenTypes.Property, SemanticTokenModifiers.Documentation);
+                }
+
+                break;
+            }
+        }
+    }
+
+    private void TokenizeNode(SemanticModel semanticModel, SemanticBuilderWrapper builder, LuaSyntaxNode node, LuaSymbol? moduleClassSymbol)
+    {
+        switch (node)
+        {
+            case LuaFuncStatSyntax funcStatSyntax:
+            {
+                if (funcStatSyntax.IsLocal)
+                {
+                    if (funcStatSyntax.NameElement is { } name)
+                    {
+                        builder.Push(name, EmmySemanticTokenTypes.Function, SemanticTokenModifiers.Declaration);
+                    }
+                }
+                else
+                {
+                    if (funcStatSyntax.NameElement is { } name)
+                    {
+                        builder.Push(name, EmmySemanticTokenTypes.Method, SemanticTokenModifiers.Declaration);
+                    }
+                }
+                break;
+            }
+            case LuaLocalStatSyntax localStatSyntax:
+            {
+                if (localStatSyntax.IsLocalDeclare)
+                {
+                    foreach (var name in localStatSyntax.NameList)
+                    {
+                        builder.Push(name, EmmySemanticTokenTypes.Variable);
+                    }
+                }
+                break;
+            }
+            case LuaTableFieldSyntax tableFieldSyntax:
+            {
+                if (tableFieldSyntax.KeyElement is { } name)
+                {
+                    builder.Push(name, EmmySemanticTokenTypes.Property);
+                }
+                break;
+            }
+            case LuaIndexExprSyntax indexExprSyntax:
+            {
+                LuaSymbol? symbol = semanticModel.Context.FindDeclaration(indexExprSyntax);
+                if (symbol is not null)
+                {
+                    switch (symbol.Info)
+                    {
+                        case MethodInfo:
+                        {
+                            if (indexExprSyntax.DotOrColonIndexName is { } name)
+                            {
+                                if (symbol.Type is LuaMethodType)
+                                {
+                                    builder.Push(name, EmmySemanticTokenTypes.Method);
+                                }
+                            }
+
+                            break;
+                        }
+                        case DocFieldInfo:
+                        case IndexInfo:
+                        {
+                            if (indexExprSyntax.DotOrColonIndexName is { } name)
+                            {
+                                if (symbol.Type is LuaMethodType)
+                                {
+                                    builder.Push(name, EmmySemanticTokenTypes.Method);
+                                }
+                                else
+                                {
+                                    builder.Push(name, EmmySemanticTokenTypes.Property);
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                break;
+            }
+            case LuaParamDefSyntax paramDefSyntax:
+            {
+                if (paramDefSyntax.Name is { } name)
+                {
+                    builder.Push(name, EmmySemanticTokenTypes.Parameter, SemanticTokenModifiers.Declaration);
+                    // LuaSymbol? symbol = semanticModel.Context.FindDeclaration(paramDefSyntax);
+                    // if (symbol != null)
+                    // {
+                    //     foreach (var referenceResult in semanticModel.Context.FindReferences(symbol))
+                    //     {
+                    //         builder.Push(referenceResult.Element, EmmySemanticTokenTypes.Parameter);
+                    //     }
+                    // }
+                    
+                }
+                break;
+            }
+            // case LuaCallExprSyntax callExprSyntax:
+            // {
+            //     builder.Push(callExprSyntax, EmmySemanticTokenTypes.Method);
+            //     Console.WriteLine("1");
+            //     break;
+            // }
+            case LuaNameExprSyntax nameExprSyntax:
+            {
+                if (nameExprSyntax.Name is { } name)
+                {
+                    LuaSymbol? symbol = semanticModel.Context.FindDeclaration(nameExprSyntax);
+                    if (symbol is not null)
+                    {
+                        switch (symbol.Info)
+                        {
+                            case ParamInfo paramInfo:
+                            {
+                                builder.Push(name, EmmySemanticTokenTypes.Parameter);
+                                break;
+                            }
+                            case MethodInfo methodInfo:
+                            {
+                                if (symbol.Type is LuaGenericMethodType)
+                                {
+                                    builder.Push(name, EmmySemanticTokenTypes.Function, SemanticTokenModifiers.DefaultLibrary);
+                                }
+                                else if (symbol.Type is LuaMethodType)
+                                {
+                                    if (symbol.IsGlobal)
+                                    {
+                                        builder.Push(name, EmmySemanticTokenTypes.Function, SemanticTokenModifiers.DefaultLibrary);
+                                    }
+                                    else
+                                    {
+                                        builder.Push(name, EmmySemanticTokenTypes.Method);
+                                    }
+                                }
+                                break;
+                            }
+                            case GlobalInfo globalInfo:
+                            case LocalInfo localInfo:
+                            {
+                                if (name.Text is EmmySemanticTokenTypes.Self)
+                                {
+                                    builder.Push(name, EmmySemanticTokenTypes.Self);
+                                }
+                                else if (name.Text is EmmySemanticTokenTypes.G)
+                                {
+                                    builder.Push(name, EmmySemanticTokenTypes.G);
+                                }
+                                else
+                                {
+                                    if (symbol.UniqueId == moduleClassSymbol?.UniqueId)
+                                    {
+                                        builder.Push(name, EmmySemanticTokenTypes.Class);
+                                    }
+                                    else if (symbol.Type is LuaNamedType namedType)
+                                    {
+                                        var typeInfo = semanticModel.Context.Compilation.TypeManager.FindTypeInfo(namedType);
+                                        if (typeInfo?.Kind is NamedTypeKind.Class)
+                                        {
+                                            builder.Push(name, EmmySemanticTokenTypes.Class);
+                                        }
+                                        else if (typeInfo?.Kind is NamedTypeKind.Interface)
+                                        {
+                                            builder.Push(name, EmmySemanticTokenTypes.Interface);
+                                        }
+                                        else if (typeInfo?.Kind is NamedTypeKind.Enum)
+                                        {
+                                            builder.Push(name, EmmySemanticTokenTypes.Enum);
+                                        }
+                                    }
+                                    else if (symbol.Type is LuaGenericMethodType genericMethodType)
+                                    {
+                                        builder.Push(name, EmmySemanticTokenTypes.Function, SemanticTokenModifiers.DefaultLibrary);
+                                    }
+                                    else if (symbol.Type is GlobalNameType globalNameType)
+                                    {
+                                        builder.Push(name, EmmySemanticTokenTypes.G);
+                                    }
+                                    else if (symbol.Type is LuaElementType elementType)
+                                    {
+                                        LuaType? type = semanticModel.Context.Compilation.TypeManager.GetBaseType(elementType.Id);
+                                        if (type is LuaNamedType namedType1)
+                                        {
+                                            var typeInfo = semanticModel.Context.Compilation.TypeManager.FindTypeInfo(namedType1);
+                                            if (typeInfo?.Kind is NamedTypeKind.Class)
+                                            {
+                                                builder.Push(name, EmmySemanticTokenTypes.Class);
+                                            }
+                                            else if (typeInfo?.Kind is NamedTypeKind.Interface)
+                                            {
+                                                builder.Push(name, EmmySemanticTokenTypes.Interface);
+                                            }
+                                            else if (typeInfo?.Kind is NamedTypeKind.Enum)
+                                            {
+                                                builder.Push(name, EmmySemanticTokenTypes.Enum);
+                                            }
+                                        }
+                                    }
+                                }
+                                break;
+                            }
+                            default:
+                            {
+                                // if (symbol.IsLocal)
+                                // {
+                                //     //需要判断是不是一个Class
+                                //     builder.Push(name, EmmySemanticTokenTypes.Variable);
+                                // }
+                                // else
+                                // {
+                                //     builder.Push(name, EmmySemanticTokenTypes.Variable, SemanticTokenModifiers.Static);
+                                // }
+                            }
+                                break;
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+    
+    private void TokenizeNodeInternal(SemanticModel semanticModel, SemanticBuilderWrapper builder,
+        LuaFuncStatSyntax funcStatSyntax)
+    {
+        if (funcStatSyntax.NameElement is { } name)
+        {
+            builder.Push(name, EmmySemanticTokenTypes.Method);
+        }
+        
+        // if (funcStatSyntax.IsMethod)
+        // {
+        //     if (funcStatSyntax.IndexExpr is not null)
+        //     {
+        //         foreach (LuaSyntaxElement child in funcStatSyntax.ChildrenWithTokens)
+        //         {
+        //             if (child is LuaIndexExprSyntax indexExprSyntax)
+        //             {
+        //                 builder.Push(indexExprSyntax, EmmySemanticTokenTypes.Method);
+        //                 if (indexExprSyntax.PrefixExpr is {} prefixExpr)
+        //                 {
+        //                     builder.Push(prefixExpr, EmmySemanticTokenTypes.Class);
+        //                 }
+        //             }
+        //             else if (child is LuaClosureExprSyntax closureExprSyntax)
+        //             {
+        //                 TokenizeNodeInternal(semanticModel, builder, closureExprSyntax);
+        //             }
+        //         }
+        //     }
+        // }
+    }
+
+    private void TokenizeNodeInternal(SemanticModel semanticModel, SemanticBuilderWrapper builder,
+        LuaClosureExprSyntax closureExprSyntax)
+    {
+        Collection<LuaSymbol> ParamSymbols = new Collection<LuaSymbol>();
+        if (closureExprSyntax.ParamList is {} paramList)
+        {
+            foreach (LuaParamDefSyntax Param in paramList.Params)
+            {
+                builder.Push(Param, EmmySemanticTokenTypes.Parameter);
+                var Symbol = semanticModel.Context.FindDeclaration(Param);
+                if (Symbol is not null)
+                {
+                    ParamSymbols.Add(Symbol);
+                }
+            }
+        }
+        
+        var elements = closureExprSyntax.ChildrenWithTokens.SelectMany(it => it.DescendantsWithToken);
+        foreach (var element in elements)
+        {
+            var symbol = semanticModel.Context.FindDeclaration(element);
+            if (symbol is not null && ParamSymbols.Contains(symbol))
+            {
+                builder.Push(element, EmmySemanticTokenTypes.Parameter);
             }
         }
     }
