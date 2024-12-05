@@ -220,23 +220,82 @@ public class SemanticTokensAnalyzer
 
     private void TokenizeToken(SemanticModel semanticModel, SemanticBuilderWrapper builder, LuaSyntaxToken token, bool isVscode)
     {
-        if (token is {Kind:(LuaTokenKind.TkFunction or LuaTokenKind.TkAnd or LuaTokenKind.TkBreak
-                or LuaTokenKind.TkDo or LuaTokenKind.TkElse or LuaTokenKind.TkElseIf or LuaTokenKind.TkEnd
-                or LuaTokenKind.TkFalse or LuaTokenKind.TkFor or LuaTokenKind.TkIf or LuaTokenKind.TkGoto
-                or LuaTokenKind.TkIn or LuaTokenKind.TkLocal or LuaTokenKind.TkNil or LuaTokenKind.TkNot
-                or LuaTokenKind.TkOr or LuaTokenKind.TkRepeat or LuaTokenKind.TkReturn or LuaTokenKind.TkThen
-                or LuaTokenKind.TkTrue or LuaTokenKind.TkUntil or LuaTokenKind.TkWhile)})
+        switch (token.Kind)
         {
-            builder.Push(token, EmmySemanticTokenTypes.Keyword);
-        }
-
-        if (token is {Kind: LuaTokenKind.TkString})
-        {
-            builder.Push(token, EmmySemanticTokenTypes.String);
-        }
-        else if (token is { Kind: LuaTokenKind.TkInt or LuaTokenKind.TkFloat })
-        {
-            builder.Push(token, EmmySemanticTokenTypes.Number);
+            case LuaTokenKind.TkFunction:
+            case LuaTokenKind.TkAnd:
+            case LuaTokenKind.TkBreak:
+            case LuaTokenKind.TkDo:
+            case LuaTokenKind.TkElse:
+            case LuaTokenKind.TkElseIf:
+            case LuaTokenKind.TkEnd:
+            case LuaTokenKind.TkFalse:
+            case LuaTokenKind.TkFor:
+            case LuaTokenKind.TkIf:
+            case LuaTokenKind.TkGoto:
+            case LuaTokenKind.TkIn:
+            case LuaTokenKind.TkLocal:
+            case LuaTokenKind.TkNil:
+            case LuaTokenKind.TkNot:
+            case LuaTokenKind.TkOr:
+            case LuaTokenKind.TkRepeat:
+            case LuaTokenKind.TkReturn:
+            case LuaTokenKind.TkThen:
+            case LuaTokenKind.TkTrue:
+            case LuaTokenKind.TkUntil:
+            case LuaTokenKind.TkWhile:
+            {
+                builder.Push(token, EmmySemanticTokenTypes.Keyword);
+                break;
+            }
+            case LuaTokenKind.TkString:
+            {
+                builder.Push(token, EmmySemanticTokenTypes.String);
+                break;
+            }
+            case LuaTokenKind.TkInt:
+            case LuaTokenKind.TkFloat:
+            {
+                builder.Push(token, EmmySemanticTokenTypes.Number);
+                break;
+            }
+            case LuaTokenKind.TkPlus:
+            case LuaTokenKind.TkMinus:
+            case LuaTokenKind.TkMul:
+            case LuaTokenKind.TkDiv:
+            case LuaTokenKind.TkIDiv:
+            case LuaTokenKind.TkDot:
+            case LuaTokenKind.TkConcat:
+            case LuaTokenKind.TkDots:
+            case LuaTokenKind.TkComma:
+            case LuaTokenKind.TkAssign:
+            case LuaTokenKind.TkEq:
+            case LuaTokenKind.TkGe:
+            case LuaTokenKind.TkLe:
+            case LuaTokenKind.TkNe:
+            case LuaTokenKind.TkShl:
+            case LuaTokenKind.TkShr:
+            case LuaTokenKind.TkLt:
+            case LuaTokenKind.TkGt:
+            case LuaTokenKind.TkMod:
+            case LuaTokenKind.TkPow:
+            case LuaTokenKind.TkLen:
+            case LuaTokenKind.TkBitAnd:
+            case LuaTokenKind.TkBitOr:
+            case LuaTokenKind.TkBitXor:
+            case LuaTokenKind.TkColon:
+            case LuaTokenKind.TkDbColon:
+            case LuaTokenKind.TkSemicolon:
+            case LuaTokenKind.TkLeftBracket:
+            case LuaTokenKind.TkRightBracket:
+            case LuaTokenKind.TkLeftParen:
+            case LuaTokenKind.TkRightParen:
+            case LuaTokenKind.TkLeftBrace:
+            case LuaTokenKind.TkRightBrace:
+            {
+                builder.Push(token, EmmySemanticTokenTypes.Operator);
+                break;
+            }
         }
     }
     private void TokenizeToken(SemanticBuilderWrapper builder, LuaSyntaxToken token, bool isVscode)
@@ -266,6 +325,8 @@ public class SemanticTokensAnalyzer
             case LuaTokenKind.TkDots:
             case LuaTokenKind.TkComma:
             case LuaTokenKind.TkDot:
+            case LuaTokenKind.TkLt:
+            case LuaTokenKind.TkGt:
             {
                 builder.Push(token, SemanticTokenTypes.Operator);
                 break;
@@ -326,8 +387,19 @@ public class SemanticTokensAnalyzer
             case LuaTokenKind.TkLongCommentStart: // --[[
             case LuaTokenKind.TkDocLongStart: // --[[@
             case LuaTokenKind.TkDocStart: // ---@
+            case LuaTokenKind.TkDocTrivia:
             {
                 builder.Push(token, SemanticTokenTypes.Comment);
+                break;
+            }
+            case LuaTokenKind.TkName:
+            {
+                builder.Push(token, SemanticTokenTypes.Type, SemanticTokenModifiers.Documentation);
+                break;
+            }
+            default:
+            {
+                builder.Push(token, SemanticTokenTypes.Decorator, SemanticTokenModifiers.Documentation);
                 break;
             }
         }
@@ -488,24 +560,9 @@ public class SemanticTokensAnalyzer
                 if (paramDefSyntax.Name is { } name)
                 {
                     builder.Push(name, EmmySemanticTokenTypes.Parameter, SemanticTokenModifiers.Declaration);
-                    // LuaSymbol? symbol = semanticModel.Context.FindDeclaration(paramDefSyntax);
-                    // if (symbol != null)
-                    // {
-                    //     foreach (var referenceResult in semanticModel.Context.FindReferences(symbol))
-                    //     {
-                    //         builder.Push(referenceResult.Element, EmmySemanticTokenTypes.Parameter);
-                    //     }
-                    // }
-                    
                 }
                 break;
             }
-            // case LuaCallExprSyntax callExprSyntax:
-            // {
-            //     builder.Push(callExprSyntax, EmmySemanticTokenTypes.Method);
-            //     Console.WriteLine("1");
-            //     break;
-            // }
             case LuaNameExprSyntax nameExprSyntax:
             {
                 if (nameExprSyntax.Name is { } name)
@@ -556,66 +613,18 @@ public class SemanticTokensAnalyzer
                                     {
                                         builder.Push(name, EmmySemanticTokenTypes.Class);
                                     }
-                                    else if (symbol.Type is LuaNamedType namedType)
+                                    else
                                     {
-                                        var typeInfo = semanticModel.Context.Compilation.TypeManager.FindTypeInfo(namedType);
-                                        if (typeInfo?.Kind is NamedTypeKind.Class)
-                                        {
-                                            builder.Push(name, EmmySemanticTokenTypes.Class);
-                                        }
-                                        else if (typeInfo?.Kind is NamedTypeKind.Interface)
-                                        {
-                                            builder.Push(name, EmmySemanticTokenTypes.Interface);
-                                        }
-                                        else if (typeInfo?.Kind is NamedTypeKind.Enum)
-                                        {
-                                            builder.Push(name, EmmySemanticTokenTypes.Enum);
-                                        }
-                                    }
-                                    else if (symbol.Type is LuaGenericMethodType genericMethodType)
-                                    {
-                                        builder.Push(name, EmmySemanticTokenTypes.Function, SemanticTokenModifiers.DefaultLibrary);
-                                    }
-                                    else if (symbol.Type is GlobalNameType globalNameType)
-                                    {
-                                        builder.Push(name, EmmySemanticTokenTypes.G);
-                                    }
-                                    else if (symbol.Type is LuaElementType elementType)
-                                    {
-                                        LuaType? type = semanticModel.Context.Compilation.TypeManager.GetBaseType(elementType.Id);
-                                        if (type is LuaNamedType namedType1)
-                                        {
-                                            var typeInfo = semanticModel.Context.Compilation.TypeManager.FindTypeInfo(namedType1);
-                                            if (typeInfo?.Kind is NamedTypeKind.Class)
-                                            {
-                                                builder.Push(name, EmmySemanticTokenTypes.Class);
-                                            }
-                                            else if (typeInfo?.Kind is NamedTypeKind.Interface)
-                                            {
-                                                builder.Push(name, EmmySemanticTokenTypes.Interface);
-                                            }
-                                            else if (typeInfo?.Kind is NamedTypeKind.Enum)
-                                            {
-                                                builder.Push(name, EmmySemanticTokenTypes.Enum);
-                                            }
-                                        }
+                                        TokenizeNode(semanticModel, builder, name, symbol.Type, moduleClassSymbol);
                                     }
                                 }
                                 break;
                             }
-                            default:
-                            {
-                                // if (symbol.IsLocal)
-                                // {
-                                //     //需要判断是不是一个Class
-                                //     builder.Push(name, EmmySemanticTokenTypes.Variable);
-                                // }
-                                // else
-                                // {
-                                //     builder.Push(name, EmmySemanticTokenTypes.Variable, SemanticTokenModifiers.Static);
-                                // }
-                            }
-                                break;
+                        }
+                        
+                        if (semanticModel.Context.IsUpValue(nameExprSyntax, symbol))
+                        {
+                            builder.Push(name, EmmySemanticTokenTypes.UpValue);
                         }
                     }
                 }
@@ -624,62 +633,66 @@ public class SemanticTokensAnalyzer
         }
     }
     
-    private void TokenizeNodeInternal(SemanticModel semanticModel, SemanticBuilderWrapper builder,
-        LuaFuncStatSyntax funcStatSyntax)
+    private void TokenizeNode(SemanticModel semanticModel, SemanticBuilderWrapper builder, LuaNameToken name,
+        LuaType? type, LuaSymbol? moduleClassSymbol)
     {
-        if (funcStatSyntax.NameElement is { } name)
+        if (type is LuaArrayType arrayType)
         {
-            builder.Push(name, EmmySemanticTokenTypes.Method);
+            TokenizeNode(semanticModel, builder, name, arrayType.BaseType, moduleClassSymbol);
         }
-        
-        // if (funcStatSyntax.IsMethod)
-        // {
-        //     if (funcStatSyntax.IndexExpr is not null)
-        //     {
-        //         foreach (LuaSyntaxElement child in funcStatSyntax.ChildrenWithTokens)
-        //         {
-        //             if (child is LuaIndexExprSyntax indexExprSyntax)
-        //             {
-        //                 builder.Push(indexExprSyntax, EmmySemanticTokenTypes.Method);
-        //                 if (indexExprSyntax.PrefixExpr is {} prefixExpr)
-        //                 {
-        //                     builder.Push(prefixExpr, EmmySemanticTokenTypes.Class);
-        //                 }
-        //             }
-        //             else if (child is LuaClosureExprSyntax closureExprSyntax)
-        //             {
-        //                 TokenizeNodeInternal(semanticModel, builder, closureExprSyntax);
-        //             }
-        //         }
-        //     }
-        // }
-    }
-
-    private void TokenizeNodeInternal(SemanticModel semanticModel, SemanticBuilderWrapper builder,
-        LuaClosureExprSyntax closureExprSyntax)
-    {
-        Collection<LuaSymbol> ParamSymbols = new Collection<LuaSymbol>();
-        if (closureExprSyntax.ParamList is {} paramList)
+        else if (type is LuaNamedType namedType)
         {
-            foreach (LuaParamDefSyntax Param in paramList.Params)
+            var typeInfo = semanticModel.Context.Compilation.TypeManager.FindTypeInfo(namedType);
+            if (typeInfo?.Kind is NamedTypeKind.Class)
             {
-                builder.Push(Param, EmmySemanticTokenTypes.Parameter);
-                var Symbol = semanticModel.Context.FindDeclaration(Param);
-                if (Symbol is not null)
-                {
-                    ParamSymbols.Add(Symbol);
-                }
+                builder.Push(name, EmmySemanticTokenTypes.Class);
+            }
+            else if (typeInfo?.Kind is NamedTypeKind.Interface)
+            {
+                builder.Push(name, EmmySemanticTokenTypes.Interface);
+            }
+            else if (typeInfo?.Kind is NamedTypeKind.Enum)
+            {
+                builder.Push(name, EmmySemanticTokenTypes.Enum);
             }
         }
-        
-        var elements = closureExprSyntax.ChildrenWithTokens.SelectMany(it => it.DescendantsWithToken);
-        foreach (var element in elements)
+        else if (type is LuaGenericMethodType genericMethodType)
         {
-            var symbol = semanticModel.Context.FindDeclaration(element);
-            if (symbol is not null && ParamSymbols.Contains(symbol))
+            builder.Push(name, EmmySemanticTokenTypes.Function, SemanticTokenModifiers.DefaultLibrary);
+        }
+        else if (type is GlobalNameType globalNameType)
+        {
+            builder.Push(name, EmmySemanticTokenTypes.G);
+        }
+        else if (type is LuaElementType elementType)
+        {
+            LuaType? baseType = semanticModel.Context.Compilation.TypeManager.GetBaseType(elementType.Id);
+            switch (baseType)
             {
-                builder.Push(element, EmmySemanticTokenTypes.Parameter);
+                case LuaNamedType namedType1:
+                {
+                    var typeInfo = semanticModel.Context.Compilation.TypeManager.FindTypeInfo(namedType1);
+                    if (typeInfo?.Kind is NamedTypeKind.Class)
+                    {
+                        builder.Push(name, EmmySemanticTokenTypes.Class);
+                    }
+                    else if (typeInfo?.Kind is NamedTypeKind.Interface)
+                    {
+                        builder.Push(name, EmmySemanticTokenTypes.Interface);
+                    }
+                    else if (typeInfo?.Kind is NamedTypeKind.Enum)
+                    {
+                        builder.Push(name, EmmySemanticTokenTypes.Enum);
+                    }
+                    break;
+                }
+                default:
+                {
+                    builder.Push(name, EmmySemanticTokenTypes.Variable);
+                    break;
+                }
             }
         }
     }
 }
+
