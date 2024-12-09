@@ -17,7 +17,9 @@ public class SettingManager
 
     private string Workspace { get; set; } = string.Empty;
 
-    private string SettingPath => Path.Combine(Workspace, ConfigName);
+    private string SettingPath => CustomSettingPath ?? Path.Combine(Workspace, ConfigName);
+
+    public string? CustomSettingPath { get; set; }
 
     public Setting Setting { get; private set; } = new();
 
