@@ -10,6 +10,9 @@ public class CheckOptions
     
     [Option('f', "files", Required = false, HelpText = "Check specified files if declared")]
     public IEnumerable<string> files { get; set; }
+    
+    [Option('p', "fileList", Required = true, HelpText = "File list path")]
+    public string FilelistPath { get; set; } = string.Empty;
 
     [Option('c', "config", Required = false, HelpText = "Use custom .emmyrc.json file")]
     public String? Config { get; set; }

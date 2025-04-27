@@ -2,6 +2,7 @@
 using EmmyLua.CodeAnalysis.Compilation.Search;
 using EmmyLua.CodeAnalysis.Diagnostics.Checkers;
 using EmmyLua.CodeAnalysis.Document;
+using Microsoft.Extensions.FileSystemGlobbing;
 
 namespace EmmyLua.CodeAnalysis.Diagnostics;
 
@@ -44,6 +45,14 @@ public class LuaDiagnostics(LuaCompilation compilation)
         if (IsMetaDocument.Contains(document.Id))
         {
             return false;
+        }
+
+        foreach (var regex in Config.ignoreRegexs)
+        {
+            if (regex.IsMatch(document.Path))
+            {
+                return false;
+            }
         }
 
         results.AddRange(GetDiagnostics(document.Id));

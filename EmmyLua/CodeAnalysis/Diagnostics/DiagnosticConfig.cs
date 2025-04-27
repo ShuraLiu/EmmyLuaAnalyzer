@@ -5,6 +5,7 @@ namespace EmmyLua.CodeAnalysis.Diagnostics;
 
 public class DiagnosticConfig
 {
+    public List<Regex> ignoreRegexs { get; } = [];
     public HashSet<string> Globals { get; } = [];
 
     public List<Regex> GlobalRegexes { get; } = [];

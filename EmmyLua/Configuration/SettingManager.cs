@@ -185,12 +185,26 @@ public class SettingManager
         features.DiagnosticConfig.Globals.UnionWith(setting.Diagnostics.Globals);
         features.DiagnosticConfig.WorkspaceDisabledCodes.UnionWith(setting.Diagnostics.Disable);
         features.DiagnosticConfig.WorkspaceEnabledCodes.UnionWith(setting.Diagnostics.Enables);
+
         foreach (var globalRegexString in setting.Diagnostics.GlobalsRegex)
         {
             try
             {
                 var regex = new Regex(globalRegexString);
                 features.DiagnosticConfig.GlobalRegexes.Add(regex);
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        foreach (var ignoreRegexString in setting.Diagnostics.ignoresRegex)
+        {
+            try
+            {
+                var regex = new Regex(ignoreRegexString);
+                features.DiagnosticConfig.ignoreRegexs.Add(regex);
             }
             catch
             {

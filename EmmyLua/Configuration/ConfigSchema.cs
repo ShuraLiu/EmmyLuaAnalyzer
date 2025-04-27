@@ -70,6 +70,9 @@ public class Completion
 
 public class Diagnostics
 {
+    [JsonPropertyName("ignoresRegex")]
+    public List<string> ignoresRegex { get; set; } = [];
+
     [JsonPropertyName("disable")]
     public List<DiagnosticCode> Disable { get; set; } = [];
 
